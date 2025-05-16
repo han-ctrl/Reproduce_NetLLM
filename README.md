@@ -119,6 +119,8 @@ tokenizer.save_pretrained(save_path)
 ```
 
 需要确保结构：
+
+```text
 downloaded_plms/
 └── gpt2/
     └── base/
@@ -127,6 +129,7 @@ downloaded_plms/
         ├── tokenizer.model
         ├── model.safetensors
         ├── ...
+```
 
 运行训练命令
 
