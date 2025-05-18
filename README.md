@@ -56,9 +56,8 @@ pip install \
 ```bash
 sudo apt update
 sudo apt install libmpich-dev
-或者如果项目代码没用 from stable_baselines.common.vec_env import SubprocVecEnv 
-类似依赖 MPI 的功能。或者如果没有使用 SubprocVecEnv 或 MPI 并行框架，那么可以直接使用基础版本：
-pip install 'stable-baselines[mpi]==2.10.1' -i https://pypi.tuna.tsinghua.edu.cn/simple
+或者
+pip install 'stable-baselines[mpi]==2.10.1' -i https://pypi.tuna.tsinghua.edu.cn/simple #我是用的这个
 ```
 
 ### 第二步：生成经验池（用于 LLM 微调）
@@ -163,6 +162,7 @@ python run_plm.py --adapt \
 # {'time/training': 172.69922947883606,
 #  'training/train_loss_mean': 0.6997199991268404,
 #  'training/train_loss_std': 0.5768086625550441}
+# Best model saved at: data/ft_plms/mistral_base/artifacts_exp_pools_ss_None/rank_128_w_20_gamma_1.0_sfd_256_lr_0.0001_wd_0.0001_warm_2000_epochs_80_seed_100003/early_stop_-1_best_model
 conda activate abr_netllm
 python run_plm.py --adapt --grad-accum-steps 32 --plm-type mistral --plm-size base --rank 128 --device cuda:0 --lr 0.0001 --warmup-steps 2000 --num-epochs 80 --eval-per-epoch 2 
   ```
@@ -187,7 +187,7 @@ python run_plm.py --test \
 # Test time: 407.64674711227417 
 # Mean reward: 0.6343141659594769
 # Results saved at: artifacts/results/fcc-test_video1/trace_num_100_fixed_True/mistral_base/early_stop_-1_rank_128_w_20_gamma_1.0_tgt_scale_1.0_seed_100003
-python run_plm.py --test --grad-accum-steps 32 --plm-type mistral --plm-size base --rank 128 --device cuda:0 --lr 0.0001 --warmup-steps 2000 --num-epochs 80 --eval-per-epoch 2
+python run_plm.py --test --grad-accum-steps 32 --plm-type mistral --plm-size base --rank 128 --device cuda:0 --lr 0.0001 --warmup-steps 2000 --num-epochs 80 --eval-per-epoch 2 --model-dir data/ft_plms/mistral_base/artifacts_exp_pools_ss_None/rank_128_w_20_gamma_1.0_sfd_256_lr_0.0001_wd_0.0001_warm_2000_epochs_80_seed_100003/early_stop_-1_best_model
 
 # 用 baseline 算法在测试集上跑
 # {'fcc-test': 0.8478713796045128}
