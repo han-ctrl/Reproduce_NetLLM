@@ -1,5 +1,13 @@
 # NetLLM
 
+目前使用作者提供的经验池训练后再测试，mean reward=0.63，远低于baseline的0.84
+
+使用过一次自己生成的经验池训练，mean reward为负
+
+若申请到llama2的权限，ABR的readme带有他们已经微调好的checkpoint，可以试试。也许是模型差异
+
+另外两个任务的流程应该和ABR差不多，参考readme就够了
+
 ## conda和克隆仓库
 
 ```bash
@@ -66,14 +74,17 @@ pip install protobuf==3.20.3 -i https://pypi.tuna.tsinghua.edu.cn/simple --trust
 pip install numba -i https://pypi.tuna.tsinghua.edu.cn/simple 
 
 conda activate abr_tf
-# models：用哪个 baseline 生成数据（推荐用 genet）
-# trace：
+# mean reward :0.42940266194488325
 python generate_exp_pool.py \
   --models genet \              
   --trace fcc-train \            # <-- 根据数据集自定义的 trace 名称
   --video video1 \               # <-- 根据数据集自定义的视频名
   --trace-num 100 \
   --cuda-id 0
+
+结束后看到：
+Done! 0.42940266194488325
+Done. Experience pool saved at: artifacts/exp_pools/fcc-train_video1/genet/seed_100003_trace_num_100_fixed_False/exp_pool.pkl
 ```
 
 ### 第三步：用经验池微调 LLM
@@ -83,24 +94,10 @@ python generate_exp_pool.py \
 LLM下载
 
 ```bash
-pip install modelscope
-
-# 下载gpt2
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import os
-model_id = "gpt2" #124M参数，大概24G显存运行时会占到30%，llama,mistral一块24G不够跑，两块一起用要改代码，作者这代码就没考虑多块
-save_path = "../downloaded_plms/gpt2/small" # config.py中有写embed_sizes:'base': 1024,'small': 768,'large': 1280,'xl': 1600, 根据size不同，命名不同
-os.makedirs(save_path, exist_ok=True)
-model = AutoModelForCausalLM.from_pretrained(model_id)
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-model.save_pretrained(save_path)
-tokenizer.save_pretrained(save_path)
-
-
 # 下载mistral模型，mistralai/Mistral-7B-v0.1训练大概要24-30G，一张24G卡不够
 #登录 Hugging Face 并申请授权
 huggingface-cli login
-#加入python环境
+#进入python环境
 python
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -138,38 +135,19 @@ plm-type 可以是：llama, gpt2, opt, mistral, t5
 plm-size 对应你的模型目录，比如 ../downloaded_plms/llama2/base/
 
 ```bash
-conda activate abr_netllm
-#loss 从 ~3.07 → ~2.11，return 达到 3.89  测试集：Mean reward: -5.929797327267098
-训练：
-python run_plm.py --adapt \
-  --plm-type gpt2 \
-  --plm-size small \
-  --rank 8 \
-  --device cuda:0 \
-  --lr 0.0001 \
-  --warmup-steps 2000 \
-  --num-epochs 10 \
-  --eval-per-epoch 2 \
-  --exp-pool-path artifacts/exp_pools/exp_pool.pkl
-
-# 'training/train_loss_mean': 1.3708879004520584  Mean reward: -2.9870318727173113
-python run_plm.py --adapt \
-  --plm-type gpt2 \
-  --plm-size small \
-  --rank 32 \
-  --device cuda:0 \
-  --lr 0.0001 \
-  --warmup-steps 2000 \
-  --num-epochs 30 \
-  --eval-per-epoch 2 \
-  --exp-pool-path artifacts/exp_pools/exp_pool.pkl
-
-# 多GPU见plm_utils.py 的 create_device_map_for_llama,因为 run_plm.py 会把这三个参数传给 load_plm，最终由 create_device_map_for_llama 生成分配方案
-# 三卡指令
+# 多GPU见plm_utils.py 的 create_device_map_for_llama, run_plm.py 会把参数传给 load_plm，最终由 create_device_map_for_llama 生成分配方案
+# 三卡指令：
 # --device cuda:0 \
 # --device-mid cuda:1 \
 # --device-out cuda:2 \
+# plm_special/test.py：reward = 视频质量 - 卡顿惩罚 - 码率切换惩罚
+# eval-per-epoch可降至 1 次 / 轮以减少时间开销
+# 'training/train_loss_mean': 2.4482011270290736,
+# 'training/train_loss_std': 1.8213208101392893
+# 不指定exp-pool-path就是用作者提供的默认经验池
+conda activate abr_netllm
 python run_plm.py --adapt \
+  --grad-accum-steps 32 
   --plm-type mistral \
   --plm-size base \
   --rank 128 \
@@ -177,29 +155,53 @@ python run_plm.py --adapt \
   --device-out cuda:1 \
   --lr 0.0001 \
   --warmup-steps 2000 \
-  --num-epochs 30 \
-  --eval-per-epoch 2 \
-  --exp-pool-path artifacts/exp_pools/exp_pool.pkl
+  --num-epochs 80 \
+  --eval-per-epoch 2 \      
+  --exp-pool-path artifacts/exp_pools/fcc-train_video1/genet/seed_100003_trace_num_100_fixed_False/exp_pool.pkl
+
+  # 使用作者提供的默认经验池
+# {'time/training': 172.69922947883606,
+#  'training/train_loss_mean': 0.6997199991268404,
+#  'training/train_loss_std': 0.5768086625550441}
+conda activate abr_netllm
+python run_plm.py --adapt --grad-accum-steps 32 --plm-type mistral --plm-size base --rank 128 --device cuda:0 --lr 0.0001 --warmup-steps 2000 --num-epochs 80 --eval-per-epoch 2 
   ```
 
 ### 第四步：测试 LLM 表现
 
 ```bash
 测试：
-python run_plm.py \
-  --test \
-  --plm-type gpt2 \
-  --plm-size small \
-  --rank 8 \
-  --device cuda:0 \
-  --model-dir data/ft_plms/gpt2_small/artifacts_exp_pools_ss_None/rank_8_w_20_gamma_1.0_sfd_256_lr_0.0001_wd_0.0001_warm_2000_epochs_10_seed_100003/early_stop_-1_best_model
-
+# Mean reward: -1.3665851759552146
+conda activate abr_netllm
 python run_plm.py --test \
   --plm-type mistral \
   --plm-size base \
   --rank 128 \
   --device cuda:0 \
-  --model-dir checkpoints/your_best_model_dir
+  --model-dir data/ft_plms/mistral_base/fcc-train_video1_genet_seed_100003_trace_num_100_fixed_False_ss_None/rank_128_w_20_gamma_1.0_sfd_256_lr_0.0001_wd_0.0001_warm_2000_epochs_80_seed_100003/early_stop_-1_best_model \
+  --trace fcc-test \
+  --trace-num 100 \
+  --video video1
+
+# {'time': 407.64674711227417, 'mean_reward': 0.6343141659594769}
+# Test time: 407.64674711227417 
+# Mean reward: 0.6343141659594769
+# Results saved at: artifacts/results/fcc-test_video1/trace_num_100_fixed_True/mistral_base/early_stop_-1_rank_128_w_20_gamma_1.0_tgt_scale_1.0_seed_100003
+python run_plm.py --test --grad-accum-steps 32 --plm-type mistral --plm-size base --rank 128 --device cuda:0 --lr 0.0001 --warmup-steps 2000 --num-epochs 80 --eval-per-epoch 2
+
+# 用 baseline 算法在测试集上跑
+# {'fcc-test': 0.8478713796045128}
+# {'fcc-test': 0.8484549686275232}
+# {'fcc-test': 0.7641513827696078}
+# baseline结果基本和论文一致
+conda activate abr_tf
+python run_baseline.py --model genet --test-trace fcc-test --video video1 --test-trace-num 100 --cuda-id 0
+python run_baseline.py --model mpc
+python run_baseline.py --model bba 
+# 可替换选项：--test-trace fcc-test --video video1 --test-trace-num 100 --cuda-id 0
+# --test-trace：指定测试集 trace
+# --video：指定视频
+# --test-trace-num：指定用多少条 trace
   ```
 
 ### 在其他数据集使用NetLLM
