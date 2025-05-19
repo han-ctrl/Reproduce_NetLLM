@@ -88,7 +88,7 @@ Done. Experience pool saved at: artifacts/exp_pools/fcc-train_video1/genet/seed_
 
 ### 第三步：用经验池微调 LLM
 
-用 LLM 开始适配训练(注意原始 NetLLM 代码只支持 llama 多卡分布式加载，我修改后现已支持mistral，若要支持其他的，搜索**#add**看我修改的部分增加就行)
+用 LLM 开始适配训练(注意原始 NetLLM 代码只支持 llama 多卡分布式加载，我修改后现已支持mistral，若要支持其他的，搜索**\#add**看我修改的部分增加就行)
 
 LLM下载
 
