@@ -88,7 +88,7 @@ Done. Experience pool saved at: artifacts/exp_pools/fcc-train_video1/genet/seed_
 
 ### 第三步：用经验池微调 LLM
 
-用 LLM 开始适配训练(注意原始 NetLLM 代码只支持 llama 多卡分布式加载，我修改后现已支持mistral，若要支持其他的，搜索**#add**看我修改的部分增加就行)
+用 LLM 开始适配训练(注意原始 NetLLM 代码只支持 llama 多卡分布式加载，我修改后现已支持mistral，若要支持其他的，搜索`#add`看我修改的部分增加就行)
 
 LLM下载
 
@@ -206,7 +206,20 @@ python run_baseline.py --model bba
 
 ### 在其他数据集使用NetLLM
 
-todo
+将网络 trace 数据和视频 size 数据放入 data/traces/ 和 data/videos/ 目录下，结构参考已有的 fcc-train、video1_sizes 等。
+在 config.py 中添加 trace 和 video 路径，例如：
+
+```PYTHON
+trace_dirs = {
+    'your-train': _base_dir + 'data/traces/train/your-train/',
+    'your-test': _base_dir + 'data/traces/test/your-test/',
+    # ...
+}
+video_size_dirs = {
+    'yourvideo': _base_dir + 'data/videos/yourvideo_sizes/',
+    # ...
+}
+```
 
 ### Citation
 
